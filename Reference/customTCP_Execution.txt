@@ -1,0 +1,10 @@
+
+
+examples/tcp/tcp-variants-comparison.cc  -->   change value of "transport_prot"
+						eg : string transport_prot="TcpVegas";
+					 -->   change value "queue_disc_type"  for different AQM algorithm
+					        eg :  string queue_disc_type="ns3::CoDelQueueDisc";
+					 -->   enable tracing to generate 
+					     
+					  
+
