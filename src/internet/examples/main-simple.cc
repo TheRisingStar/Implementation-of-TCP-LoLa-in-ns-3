@@ -57,7 +57,8 @@ PrintTraffic (Ptr<Socket> socket)
   socket->SetRecvCallback (MakeCallback (&SocketPrinter));
 }
 
-void RunSimulation (void)
+void
+RunSimulation (void)
 {
   NodeContainer c;
   c.Create (1);
@@ -66,7 +67,7 @@ void RunSimulation (void)
   internet.Install (c);
 
 
-  TypeId tid = TypeId::LookupByName ("ns3::TcpSocketFactory");
+  TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
   Ptr<Socket> sink = Socket::CreateSocket (c.Get (0), tid);
   InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), 80);
   sink->Bind (local);
@@ -75,7 +76,7 @@ void RunSimulation (void)
   InetSocketAddress remote = InetSocketAddress (Ipv4Address::GetLoopback (), 80);
   source->Connect (remote);
 
-  GenerateTraffic (source, 5000);
+  GenerateTraffic (source, 500);
   PrintTraffic (sink);
 
 
@@ -86,7 +87,6 @@ void RunSimulation (void)
 
 int main (int argc, char *argv[])
 {
-  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", StringValue ("ns3::TcpBic"));
   CommandLine cmd;
   cmd.Parse (argc, argv);
   
