@@ -52,35 +52,25 @@ public:
    * \brief Get the type ID.
    * \return the object TypeId
    */
-  static TypeId GetTypeId (void);   
+  static TypeId GetTypeId (void);
 
-  DhcpServer ();     
-  virtual ~DhcpServer ();  
+  DhcpServer ();
+  virtual ~DhcpServer ();
 
   /**
    * \brief Add a static entry to the pool.
+   *
    * \param chaddr The client chaddr.
    * \param addr The address to handle to the client.
    */
   void AddStaticDhcpEntry (Address chaddr, Ipv4Address addr);
 
 
-  /**
-   * \brief Add PoolAddress information  of subnet 
-   * \param poolAddr The Ipv4Address (network part) of the allocated pool
-   * \param poolMask The mask of the allocated pool
-   * \param minAddr The lower bound of the Ipv4Address pool
-   * \param maxAddr The upper bound of the Ipv4Address poo
-   * \param addr The address to handle to the client.
-   */
-  void AddSubnets(Ipv4Address poolAddr, Ipv4Mask poolMask, Ipv4Address minAddr, Ipv4Address maxAddr);
-
-
 protected:
   virtual void DoDispose (void);
 
 private:
-  static const int PORT = 67;                       //!< Port number of DHCP server  
+  static const int PORT = 67;                       //!< Port number of DHCP server
 
   /**
    * \brief Handles incoming packets from the network
@@ -115,28 +105,17 @@ private:
   virtual void StartApplication (void);
 
   /**
-   * \brief Stops the DHCP Server application
+   * \brief Stops the DHCP client application
    */
   virtual void StopApplication (void);
 
-
-  /**
-   * \brief Check the given Ipv4Address is in valid range
-   * \param reqAddr Ipv4Address needs to check the validty
-   * \return boolean true if reqAddr si within the range
-   */
-  bool CheckIfValid(Ipv4Address reqAddr);
-
   Ptr<Socket> m_socket;                  //!< The socket bound to port 67
+  Ipv4Address m_poolAddress;             //!< The network address available to the server
+  Ipv4Address m_minAddress;              //!< The first address in the address pool
+  Ipv4Address m_maxAddress;              //!< The last address in the address pool
+  Ipv4Mask m_poolMask;                   //!< The network mask of the pool
   Ipv4Address m_gateway;                 //!< The gateway address
 
-  /// Pool address conatainer - Pool address / Pool mask + Min address / Max address
-  typedef std::list < std::pair < std::pair <Ipv4Address,Ipv4Mask> , std::pair <Ipv4Address,Ipv4Address> > > PoolAddress; 
-  /// Pool address iterator - Pool address / Pool mask + Min address / Max address
-  typedef std::list < std::pair < std::pair <Ipv4Address,Ipv4Mask> , std::pair <Ipv4Address,Ipv4Address> > >::iterator PoolAddressIter; 
-  /// Pool address const iterator - Pool address / Pool mask + Min address / Max address
-  typedef std::list < std::pair < std::pair <Ipv4Address,Ipv4Mask> , std::pair <Ipv4Address,Ipv4Address> > >::const_iterator PoolAddressCIter; 
-  
   /// Leased address container - chaddr + IP addr / lease time
   typedef std::map<Address, std::pair<Ipv4Address, uint32_t> > LeasedAddress;
   /// Leased address iterator - chaddr + IP addr / lease time
@@ -151,14 +130,9 @@ private:
   /// Expired address const iterator - chaddr
   typedef std::list<Address>::const_iterator ExpiredAddressCIter;
 
-  /// Available address container - IP address / subnet mask
-  typedef std::list< std::pair<Ipv4Address, Ipv4Mask> > AvailableAddress;
-  /// Available address iterator - IP address / subnet mask
-  typedef std::list< std::pair<Ipv4Address, Ipv4Mask> >::iterator  AvailableAddressIter;
-  /// Available address const iterator - IP address / subnet mask
-  typedef std::list< std::pair<Ipv4Address, Ipv4Mask> >::const_iterator AvailableAddressCIter;
+  /// Available address container - IP addr
+  typedef std::list<Ipv4Address> AvailableAddress;
 
-  PoolAddress m_poolAddresses;           //!< Pool address and their range and subnet mask
   LeasedAddress m_leasedAddresses;       //!< Leased address and their status (cache memory)
   ExpiredAddress m_expiredAddresses;     //!< Expired addresses to be reused (chaddr of the clients)
   AvailableAddress m_availableAddresses; //!< Available addresses to be used (IP addresses)

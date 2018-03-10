@@ -255,16 +255,6 @@ void DhcpHeader::ResetOpt ()
     }
 }
 
-void DhcpHeader::SetGiAddr (Ipv4Address giAddr)
-{
-  m_giAddr = giAddr;
-}
-
-Ipv4Address DhcpHeader::GetGiAddr ()
-{
-  return m_giAddr;
-}
-
 uint32_t DhcpHeader::GetSerializedSize (void) const
 {
   return m_len;

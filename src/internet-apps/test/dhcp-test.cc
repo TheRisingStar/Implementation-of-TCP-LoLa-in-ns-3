@@ -103,7 +103,9 @@ DhcpTestCase::DoRun (void)
   DhcpHelper dhcpHelper;
 
   ApplicationContainer dhcpServerApp = dhcpHelper.InstallDhcpServer (devNet.Get (0), Ipv4Address ("172.30.0.12"),
-                                                                     Ipv4Mask ("/24"),Ipv4Address ("172.30.0.17"));
+                                                                     Ipv4Address ("172.30.0.0"), Ipv4Mask ("/24"),
+                                                                     Ipv4Address ("172.30.0.10"), Ipv4Address ("172.30.0.15"),
+                                                                     Ipv4Address ("172.30.0.17"));
   dhcpServerApp.Start (Seconds (0.0));
   dhcpServerApp.Stop (Seconds (20.0));
 

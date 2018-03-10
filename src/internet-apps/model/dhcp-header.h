@@ -281,18 +281,6 @@ public:
   uint32_t GetRebind (void) const;
 
   /**
-   * \brief Set the gateway address for each header
-   * \param giAddr Ipv4Address of Gateway
-   */ 
-  void SetGiAddr(Ipv4Address giAddr);
-
-  /**
-   * \brief  Return Gateway address of the header 
-   * \return Ipv4Address
-   */ 
-  Ipv4Address GetGiAddr();
-
-  /**
    * \brief Reset the BOOTP options
    */
   void ResetOpt ();
