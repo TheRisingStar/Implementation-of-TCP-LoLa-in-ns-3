@@ -16,7 +16,7 @@ TypeId TcpLola::GetTypeId (void)
   return tid;
 }
 
-TcpLola::TcpLola (void) : TcpNewReno (),
+TcpLola::TcpLola (void) : TcpNewReno (){}
     /*m_alpha (2),
     m_beta (4),
     m_gamma (1),
@@ -32,7 +32,7 @@ TcpLola::TcpLola (void) : TcpNewReno (),
 Need to change this
 */
 
-TcpLola::TcpLola (const TcpLola& sock) : TcpNewReno (sock),
+TcpLola::TcpLola (const TcpLola& sock) : TcpNewReno (sock){}
     /*m_alpha (sock.m_alpha),
     m_beta (sock.m_beta),
     m_gamma (sock.m_gamma),
@@ -51,6 +51,11 @@ Need to change this
 TcpLola::~TcpLola (void)
 {
   NS_LOG_FUNCTION (this);
+}
+
+std::string TcpLola::GetName () const
+{
+  return "TcpLola";
 }
 
 }
