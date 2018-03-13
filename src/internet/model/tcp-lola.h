@@ -37,7 +37,8 @@ public:
   virtual void PktsAcked (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked,
                           const Time& rtt);
 //Enable/Disable Lola 
- virtual void CongestionStateSet (Ptr<TcpSocketState> tcb,
+ virtual void TcpLola::CongestionStateSet (Ptr<TcpSocketState> tcb,
+                              const TcpSocketState::TcpCongState_t newState);
 
 
 
@@ -46,26 +47,18 @@ public:
 virtual uint32_t GetSsThresh (Ptr<const TcpSocketState> tcb,
                                 uint32_t bytesInFlight);
 // Increase congestion window in Cubic manner 
-virtual void cubicIncrease()
-protected:
+void cubicIncrease();
+
 
 private:
- //Enable Lola
- void EnableLola (Ptr<TcpSocketState> tcb);
 
-  /**
-   * \brief Stop taking Vegas samples
-   */
-  void DisableLola ();
-  
- private :
  
  Time m_queueLow;    //Knob  minimum queue delay
  Time m_queueTarget; //Knob 
  Time m_minRtt;    // minimum value of RTT during meaurement time
  Time m_maxRtt;    // maximum value of RTT during meaurement time
  uint32_t m_cntRtt;                 //!< Number of RTT measurements during last RTT
-  bool m_doingLolaNow;              //!< If true, do Lola for this RTT
+
  
 
   
