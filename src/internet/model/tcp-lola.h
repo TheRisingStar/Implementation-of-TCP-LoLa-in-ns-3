@@ -29,21 +29,59 @@ public:
   TcpLola (const TcpLola& sock);
 
   virtual ~TcpLola (void);
+  
+   virtual std::string GetName () const;
      
-  //Computes RTT needed to execute Lola algorithm
+  /**
+   * \brief Compute RTTs needed to execute Vegas algorithm
+   *
+   * The function filters RTT samples from the last RTT to find
+   * the current smallest propagation delay + queueing delay (minRtt).
+   * We take the minimum to avoid the effects of delayed ACKs.
+   *
+   * The function also min-filters all RTT measurements seen to find the
+   * propagation delay (baseRtt).
+   *
+   * \param tcb internal congestion state
+   * \param segmentsAcked count of segments ACKed
+   * \param rtt last RTT
+   *
+   */
   virtual void PktsAcked (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked,
                           const Time& rtt);
- 
-  virtual void TcpLola::CongestionStateSet (Ptr<TcpSocketState> tcb,
-                              const TcpSocketState::TcpCongState_t newState);
 
-  // Get slow start threshold for Lola 
+  /**
+   * \brief Enable/disable Vegas algorithm depending on the congestion state
+   *
+   * We only start a Vegas cycle when we are in normal congestion state (CA_OPEN state).
+   *
+   * \param tcb internal congestion state
+   * \param newState new congestion state to which the TCP is going to switch
+   */
+  virtual void CongestionStateSet (Ptr<TcpSocketState> tcb,
+                                   const TcpSocketState::TcpCongState_t newState);
+
+  /**
+   * \brief Adjust cwnd following Vegas linear increase/decrease algorithm
+   *
+   * \param tcb internal congestion state
+   * \param segmentsAcked count of segments ACKed
+   */
+  virtual void IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked);
+
+  /**
+   * \brief Get slow start threshold following Vegas principle
+   *
+   * \param tcb internal congestion state
+   * \param bytesInFlight bytes in flight
+   *
+   * \return the slow start threshold value
+   */
   virtual uint32_t GetSsThresh (Ptr<const TcpSocketState> tcb,
                                 uint32_t bytesInFlight);
 
-  // Increase congestion window in Cubic manner 
-  void cubicIncrease();
-
+  virtual Ptr<TcpCongestionOps> Fork ();
+  
 private:
   Time m_queueLow;    //knob  minimum queue delay
   Time m_queueTarget; //knob 
