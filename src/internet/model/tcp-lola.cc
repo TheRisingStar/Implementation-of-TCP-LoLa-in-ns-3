@@ -56,6 +56,9 @@ void TcpLola::PktsAcked (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked,const T
 
   m_maxRtt = std::max (m_maxRtt, rtt);
   NS_LOG_DEBUG ("Updated m_maxRtt = " << m_maxRtt);
+  
+  m_nowRtt=rtt;
+  NS_LOG_DEBUG ("Updated m_nowRtt = " << m_nowRtt);
 
   // Update RTT counter
   m_cntRtt++;
@@ -74,7 +77,28 @@ void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
   NS_LOG_FUNCTION (this << tcb << segmentsAcked);
   
+  if(m_maxRtt-m_minRtt > 2*m_queueLow.GetSeconds())
+  {
+	//cubic increase   
+  }
+  else if(m_nowRtt-m_minRtt > m_queueLow.GetSeconds())
+  {
+  	//fair flow balancing
+  
+  }
+  else if(m_nowRtt-m_minRtt > m_queueTarget.GetSeconds())
+  {
+  	// cwnd hold for a period of m_syncTime
+  	// then call cubic increase
+  }
+  else{
+  	TcpNewReno::SlowStart (tcb, segmentsAcked);
+  }
+  
+  
+
   // Need to add different increase window stratergies
+
 }
 
 std::string TcpLola::GetName () const

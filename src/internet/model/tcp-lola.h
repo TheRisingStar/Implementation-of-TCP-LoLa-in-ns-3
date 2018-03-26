@@ -85,6 +85,8 @@ public:
 private:
   Time m_queueLow;    //knob  minimum queue delay
   Time m_queueTarget; //knob 
+  Time m_syncTime;
+  Time m_nowRtt;
   Time m_minRtt;    // minimum value of RTT during meaurement time
   Time m_maxRtt;    // maximum value of RTT during meaurement time
   uint32_t m_cntRtt;                 //!< Number of RTT measurements during last RTT
