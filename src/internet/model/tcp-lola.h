@@ -83,13 +83,18 @@ public:
   virtual Ptr<TcpCongestionOps> Fork ();
   
 private:
-  Time m_queueLow;    //knob  minimum queue delay
-  Time m_queueTarget; //knob 
-  Time m_syncTime;
+  Time m_queueLow;	//!< Threshold value
+  Time m_queueTarget;	//!< Threshold value 
+  Time m_queueDelay;	//!< Queuing delay caused by the standing queue
+  Time m_syncTime;	//!< During CWnd Hold, the CWnd is unchanged for a fixed amount of time m_syncTime (default value = 250 ms).
   Time m_nowRtt;
-  Time m_minRtt;    // minimum value of RTT during meaurement time
-  Time m_maxRtt;    // maximum value of RTT during meaurement time
-  uint32_t m_cntRtt;                 //!< Number of RTT measurements during last RTT
+  Time m_minRtt;	//!< Minimum value of RTT during measurement time
+  Time m_maxRtt;	//!< Maximum value of RTT during measurement time
+  double m_factorC;  	//!< Unit-less factor (m_factorC = 0.4)
+  Time m_timeSinceRedn;	//!< Time since last CWnd reduction
+  double m_factorK;	//!< Recalculated whenever CWnd has to be reduced
+  uint32_t m_cwndMax;	//!< Size of CWnd before last reduction
+  uint32_t m_cntRtt;	//!< Number of RTT measurements during last RTT
 };
 
 } // namespace ns3
