@@ -17,10 +17,14 @@ TypeId TcpLola::GetTypeId (void)
     .SetParent<TcpNewReno>()
     .SetGroupName ("Internet")
     .AddConstructor<TcpLola>()
-    .AddAttribute ("t", "Time since last CWnd reduction",
-                   TimeValue (MilliSeconds (250)),
-                   MakeTimeAccessor (&TcpLola::m_timeSinceRedn),
-                   MakeTimeChecker ())
+    .AddAttribute ("C", "Unit-less factor",
+                   DoubleValue (0.4),
+                   MakeDoubleAccessor (&TcpLola::m_factorC),
+                   MakeDoubleChecker <double> (0.0))
+    .AddAttribute ("Phi", "Fair flow balancing curve factor",
+                   UintegerValue (75),
+                   MakeUintegerAccessor (&TcpLola::m_phi),
+                   MakeUintegerChecker<uint32_t> ())
   ;
   return tid;
 }
@@ -76,6 +80,14 @@ void TcpLola::CongestionStateSet (Ptr<TcpSocketState> tcb,const TcpSocketState::
   // need to set different switching based on congestion    
 }
 
+uint32_t tcp_time_stamp = static_cast<uint32_t> (Simulator::Now ().GetSeconds ());
+uint32_t TcpLola::GetTarget(uint32_t time)
+{
+  uint32_t t = (tcp_time_stamp - time);
+  uint32_t X = std::pow((t/m_phi),3);
+  return X;
+}
+
 void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
   NS_LOG_FUNCTION (this << tcb << segmentsAcked);
@@ -83,8 +95,10 @@ void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
   if(m_maxRtt - m_minRtt > 2 * m_queueLow)
   {
     //cubic increase   
-    //uint32_t segCwnd = tcb->GetCwndInSegments ();
-    m_factorC = 0.4;	 m_factorK = 0.25;	m_cwndMax = 10;
+    m_timeSinceRedn = MilliSeconds(250);	
+    m_factorK = 0.25; 
+    m_cwndMax = 10;
+
     double x;
     x = m_factorC * std::pow ((m_timeSinceRedn.GetSeconds() - m_factorK), 3.0) + static_cast<double> (m_cwndMax);	
     tcb->m_cWnd = static_cast<uint32_t> (x * tcb->m_segmentSize);
@@ -92,6 +106,17 @@ void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
   else if(m_queueDelay > m_queueLow)
   {
     //fair flow balancing
+    uint32_t X = GetTarget(static_cast<uint32_t> (Simulator::Now ().GetSeconds ()));
+    m_qData = 5;
+
+    if(m_qData < X)
+    {
+      tcb->m_cWnd += X - m_qData;
+    }
+    else
+    {
+      tcb->m_cWnd = tcb->m_cWnd;
+    }
   }
   else if(m_queueDelay > m_queueTarget)
   {
@@ -109,7 +134,7 @@ std::string TcpLola::GetName () const
   return "TcpLola";
 }
 
-uint32_t TcpLola::GetSsThresh (Ptr<const TcpSocketState> tcb,uint32_t bytesInFlight)
+uint32_t TcpLola::GetSsThresh (Ptr<const TcpSocketState> tcb, uint32_t bytesInFlight)
 {
   NS_LOG_FUNCTION (this << tcb << bytesInFlight);
   return std::max (std::min (tcb->m_ssThresh.Get (), tcb->m_cWnd.Get () - tcb->m_segmentSize), 2 * tcb->m_segmentSize);
