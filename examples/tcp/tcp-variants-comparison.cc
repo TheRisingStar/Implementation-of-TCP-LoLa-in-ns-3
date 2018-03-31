@@ -228,7 +228,7 @@ int main (int argc, char *argv[])
   CommandLine cmd;
   cmd.AddValue ("transport_prot", "Transport protocol to use: TcpNewReno, "
                 "TcpHybla, TcpHighSpeed, TcpHtcp, TcpVegas, TcpScalable, TcpVeno, "
-                "TcpBic, TcpYeah, TcpIllinois, TcpWestwood, TcpWestwoodPlus, TcpLedbat, "
+                "TcpBic, TcpYeah, TcpIllinois, TcpWestwood, TcpWestwoodPlus, TcpLedbat, TcpLola, "
 		"TcpLp", transport_prot);
   cmd.AddValue ("error_p", "Packet error rate", error_p);
   cmd.AddValue ("bandwidth", "Bottleneck bandwidth", bandwidth);
@@ -255,6 +255,7 @@ int main (int argc, char *argv[])
 
   // User may find it convenient to enable logging
   //LogComponentEnable("TcpVariantsComparison", LOG_LEVEL_ALL);
+  LogComponentEnable("TcpLola", LOG_LEVEL_ALL);
   //LogComponentEnable("BulkSendApplication", LOG_LEVEL_INFO);
   //LogComponentEnable("PfifoFastQueueDisc", LOG_LEVEL_ALL);
 
