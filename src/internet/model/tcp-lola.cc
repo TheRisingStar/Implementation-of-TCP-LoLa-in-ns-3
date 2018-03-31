@@ -125,7 +125,7 @@ void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 
     double x;
     x = m_factorC * std::pow ((Simulator::Now ().GetSeconds()-m_timeSinceRedn.GetSeconds() - m_factorK), 3.0) + static_cast<double> (m_cwndMax);	
-    tcb->m_cWnd = static_cast<uint32_t> (x * tcb->m_segmentSize); // why multiplied by segment size,
+    tcb->m_cWnd = static_cast<uint32_t> (x * tcb->m_segmentSize); 
   }
   else if(m_queueDelay > m_queueLow)
   {
@@ -133,17 +133,13 @@ void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
     NS_LOG_INFO("Fair Flow Balancing");
     uint32_t X = pow((static_cast<uint32_t> (Simulator::Now ().GetSeconds ())-m_fairFlowTimeStamp)/m_phi,3);
    
-  //  m_qData = 5;    // need to modify
-   m_qData=tcb->m_nextTxSequence-tcb->m_lastAckedSeq-1;  //unit need to specify
-
+  
+   m_qData=(tcb->m_nextTxSequence-tcb->m_lastAckedSeq-1)*tcb->m_segementSize;  
     if(m_qData < X)
     {
       tcb->m_cWnd += X - m_qData;
     }
-    else
-    {
-      tcb->m_cWnd = tcb->m_cWnd;
-    }
+    
   }
   else if(m_queueDelay > m_queueTarget)
   {
@@ -155,7 +151,8 @@ void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
     m_tempTime=m_syncTime;
     TimerHandler();
     
-    //Tailored decrease  
+    //Tailored decrease 
+    m_qData=(tcb->m_nextTxSequence-tcb->m_lastAckedSeq-1)*tcb->m_segementSize; 
     tcb->m_cWnd = (tcb->m_cWnd - m_qData)*m_gamma;
     
     
