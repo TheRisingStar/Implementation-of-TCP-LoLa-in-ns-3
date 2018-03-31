@@ -91,28 +91,26 @@ public:
 private:
   uint32_t m_queueLow;	    //!< Threshold value
   uint32_t m_queueTarget;	//!< Threshold value 
-  Time m_queueDelay;	//!< Queuing delay caused by the standing queue
+  Time m_queueDelay;	    //!< Queuing delay caused by the standing queue
   
-  uint32_t m_syncTime;	    //!< During CWnd Hold, the CWnd is unchanged for a fixed amount of time m_syncTime (default value = 250 ms).
+  uint32_t m_syncTime;	    //!< During CWnd Hold, the CWnd is unchanged for a fixed amount of time m_syncTime
   uint32_t m_tempTime;
   
-  Time m_nowRtt;
-  Time m_minRtt;	    //!< Minimum value of RTT during measurement time
-  Time m_maxRtt;	    //!< Maximum value of RTT during measurement time
+  Time m_curRtt;			//!< Current value of RTT
+  Time m_minRtt;	        //!< Minimum value of RTT during measurement time
+  Time m_maxRtt;	        //!< Maximum value of RTT during measurement time
   
-  Time m_timeSinceRedn;	//!< Time since last CWnd reduction
+  Time m_cwndRednTimeStamp;	//!< Time stamp when CWnd is reduced
+  Time m_fairFlowTimeStamp; //!< Time stamp when Queue Target is exceded
   
-  double m_factorC;  	//!< Unit-less factor (m_factorC = 0.4)
-  double m_factorK;	    //!< Recalculated whenever CWnd has to be reduced
- 
-  uint32_t m_fairFlowTimeStamp;
+  double m_factorC;      	//!< Unit-less factor
+  double m_factorK;	        //!< Recalculated whenever CWnd has to be reduced
   
-  uint32_t m_cwndMax;	//!< Size of CWnd before last reduction
-  uint32_t m_cntRtt;	//!< Number of RTT measurements during last RTT
+  uint32_t m_cwndMax;   	//!< Size of CWnd before last reduction
+  uint32_t m_qData;	    	//!< Amount of data the flow itself has queued at the bottleneck
   
-  uint32_t m_phi;		//!< Fair flow balancing curve factor
-  uint32_t m_qData;		//!< Amount of data the flow itself has queued at the bottleneck
-  double m_gamma;
+  uint32_t m_phi;	    	//!< Fair flow balancing curve factor
+  double m_gamma;           
   
   EventId m_expiredEvent;
 };
