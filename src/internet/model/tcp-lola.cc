@@ -3,6 +3,7 @@
 #include "ns3/simulator.h"
 #include "rtt-estimator.h"
 #include "tcp-socket-base.h"
+#include "ns3/simulator.h"
 #include <math.h>
 
 NS_LOG_COMPONENT_DEFINE ("TcpLola");
@@ -25,6 +26,15 @@ TypeId TcpLola::GetTypeId (void)
                    UintegerValue (75),
                    MakeUintegerAccessor (&TcpLola::m_phi),
                    MakeUintegerChecker<uint32_t> ())
+    .AddAttribute ("Gamma", "Factor to update K",
+                   UintegerValue (75),
+                   MakeUintegerAccessor (&TcpLola::m_gamma),
+                   MakeUintegerChecker<uint32_t> ())      
+    .AddAttribute ("SyncTime", "cWnd Hold Time",
+                   UintegerValue (250),
+                   MakeUintegerAccessor (&TcpLola::m_syncTime),
+                   MakeUintegerChecker<uint32_t> ())               
+
   ;
   return tid;
 }
@@ -76,11 +86,21 @@ void TcpLola::PktsAcked (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked,const T
 void TcpLola::CongestionStateSet (Ptr<TcpSocketState> tcb,const TcpSocketState::TcpCongState_t newState)
 {
   NS_LOG_FUNCTION (this << tcb << newState);
- 
+  
+  m_cwndMax=std::max(m_cwndMax,(unsigned int)tcb->m_cWnd);
+  NS_LOG_DEBUG ("Updated m_cWndmax = " << m_cwndMax);
+  
+  if (newState == TcpSocketState::CA_CWR || newState == TcpSocketState::CA_RECOVERY || newState == TcpSocketState::CA_LOSS )
+    {
+      updateKfactor();
+      
+    }
+  
   // need to set different switching based on congestion    
 }
 
 uint32_t tcp_time_stamp = static_cast<uint32_t> (Simulator::Now ().GetSeconds ());
+
 uint32_t TcpLola::GetTarget(uint32_t time)
 {
   uint32_t t = (tcp_time_stamp - time);
@@ -96,8 +116,8 @@ void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
   {
     //cubic increase   
     m_timeSinceRedn = MilliSeconds(250);	
-    m_factorK = 0.25; 
-    m_cwndMax = 10;
+   // m_factorK = 0.25;   // modified in updateKFactor();
+   // m_cwndMax = 10;	  // modified in CongestionStateSet();
 
     double x;
     x = m_factorC * std::pow ((m_timeSinceRedn.GetSeconds() - m_factorK), 3.0) + static_cast<double> (m_cwndMax);	
@@ -121,7 +141,15 @@ void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
   else if(m_queueDelay > m_queueTarget)
   {
     // cwnd hold for a period of m_syncTime
-    // then call cubic increase
+    m_tempTime=m_syncTime;
+    TimerHandler();
+    
+    //Tailored decrease
+    
+    tcb->m_cWnd = (tcb->m_cWnd - m_qData)*m_gamma;
+    
+    
+    
   }
   else
   {
@@ -140,5 +168,18 @@ uint32_t TcpLola::GetSsThresh (Ptr<const TcpSocketState> tcb, uint32_t bytesInFl
   return std::max (std::min (tcb->m_ssThresh.Get (), tcb->m_cWnd.Get () - tcb->m_segmentSize), 2 * tcb->m_segmentSize);
 }
 
+
+void TcpLola::updateKfactor(){
+	double temp = (m_nowRtt - m_minRtt * m_gamma) * m_cwndMax * m_factorC / m_nowRtt;
+	m_factorK=cbrt(temp);
+}
+
+void TcpLola::TimerHandler(){
+	
+	if(m_tempTime>0){
+		m_tempTime--;
+		m_expiredEvent = Simulator::Schedule (Seconds (1), &TcpLola::TimerHandler, this);
+	}
+}
 
 } // namespace ns3

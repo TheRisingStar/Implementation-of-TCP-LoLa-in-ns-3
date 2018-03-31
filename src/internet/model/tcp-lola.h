@@ -4,6 +4,7 @@
 #include "tcp-congestion-ops.h"
 #include "ns3/sequence-number.h"
 #include "ns3/traced-value.h"
+#include "ns3/event-id.h"
 
 namespace ns3 {
 
@@ -84,21 +85,34 @@ public:
 
   virtual Ptr<TcpCongestionOps> Fork ();
   
+  void updateKfactor();
+  void TimerHandler();
+  
 private:
   Time m_queueLow;	    //!< Threshold value
   Time m_queueTarget;	//!< Threshold value 
   Time m_queueDelay;	//!< Queuing delay caused by the standing queue
-  Time m_syncTime;	    //!< During CWnd Hold, the CWnd is unchanged for a fixed amount of time m_syncTime (default value = 250 ms).
+  
+  uint32_t m_syncTime;	    //!< During CWnd Hold, the CWnd is unchanged for a fixed amount of time m_syncTime (default value = 250 ms).
+  uint32_t m_tempTime;
+  
   Time m_nowRtt;
   Time m_minRtt;	    //!< Minimum value of RTT during measurement time
   Time m_maxRtt;	    //!< Maximum value of RTT during measurement time
-  double m_factorC;  	//!< Unit-less factor (m_factorC = 0.4)
+  
   Time m_timeSinceRedn;	//!< Time since last CWnd reduction
+  
+  double m_factorC;  	//!< Unit-less factor (m_factorC = 0.4)
   double m_factorK;	    //!< Recalculated whenever CWnd has to be reduced
+  
   uint32_t m_cwndMax;	//!< Size of CWnd before last reduction
   uint32_t m_cntRtt;	//!< Number of RTT measurements during last RTT
+  
   uint32_t m_phi;		//!< Fair flow balancing curve factor
   uint32_t m_qData;		//!< Amount of data the flow itself has queued at the bottleneck
+  uint32_t m_gamma;
+  
+  EventId m_expiredEvent;
 };
 
 } // namespace ns3
