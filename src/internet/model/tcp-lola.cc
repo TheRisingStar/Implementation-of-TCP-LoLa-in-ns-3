@@ -23,18 +23,25 @@ TypeId TcpLola::GetTypeId (void)
                    MakeDoubleAccessor (&TcpLola::m_factorC),
                    MakeDoubleChecker <double> (0.0))
     .AddAttribute ("Phi", "Fair flow balancing curve factor",
-                   UintegerValue (75),
+                   UintegerValue (35),
                    MakeUintegerAccessor (&TcpLola::m_phi),
                    MakeUintegerChecker<uint32_t> ())
     .AddAttribute ("Gamma", "Factor to update K",
-                   UintegerValue (75),
-                   MakeUintegerAccessor (&TcpLola::m_gamma),
-                   MakeUintegerChecker<uint32_t> ())      
-    .AddAttribute ("SyncTime", "cWnd Hold Time",
+                   DoubleValue (973/1024),
+                   MakeDoubleAccessor (&TcpLola::m_factorC),
+                   MakeDoubleChecker <double> (0.0))     
+    .AddAttribute ("SyncTime", "cWnd Hold Time in ms",
                    UintegerValue (250),
                    MakeUintegerAccessor (&TcpLola::m_syncTime),
-                   MakeUintegerChecker<uint32_t> ())               
-
+                   MakeUintegerChecker<uint32_t> ())            
+    .AddAttribute ("queueLow", "Minimu Queue Delay Expected  in ms",
+                   UintegerValue (1),
+                   MakeUintegerAccessor (&TcpLola::m_queueLow),
+                   MakeUintegerChecker<uint32_t> ())    
+    .AddAttribute ("queueTarget", "Target Queue Delay in ms",
+                   UintegerValue (5),
+                   MakeUintegerAccessor (&TcpLola::m_queueTarget),
+                   MakeUintegerChecker<uint32_t> ())    
   ;
   return tid;
 }
@@ -68,8 +75,8 @@ void TcpLola::PktsAcked (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked,const T
     {
       return;
     }
-
-  m_minRtt = std::min (m_minRtt, rtt);
+	
+  m_minRtt = tcb->m_minRtt;
   NS_LOG_DEBUG ("Updated m_minRtt = " << m_minRtt);
 
   m_maxRtt = std::max (m_maxRtt, rtt);
@@ -77,6 +84,9 @@ void TcpLola::PktsAcked (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked,const T
   
   m_nowRtt = rtt;
   NS_LOG_DEBUG ("Updated m_nowRtt = " << m_nowRtt);
+  
+  m_queueDelay = m_nowRtt - m_minRtt;
+  NS_LOG_DEBUG ("Updated m_queueDelay = " << m_queueDelay);
 
   // Update RTT counter
   m_cntRtt++;
@@ -93,20 +103,13 @@ void TcpLola::CongestionStateSet (Ptr<TcpSocketState> tcb,const TcpSocketState::
   if (newState == TcpSocketState::CA_CWR || newState == TcpSocketState::CA_RECOVERY || newState == TcpSocketState::CA_LOSS )
     {
       updateKfactor();
+      m_timeSinceRedn=Simulator::Now ();
       
     }
   
-  // need to set different switching based on congestion    
+     
 }
 
-uint32_t tcp_time_stamp = static_cast<uint32_t> (Simulator::Now ().GetSeconds ());
-
-uint32_t TcpLola::GetTarget(uint32_t time)
-{
-  uint32_t t = (tcp_time_stamp - time);
-  uint32_t X = std::pow((t/m_phi),3);
-  return X;
-}
 
 void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
@@ -114,20 +117,24 @@ void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
   
   if(m_maxRtt - m_minRtt > 2 * m_queueLow)
   {
+    NS_LOG_INFO("Cubic Increase");
     //cubic increase   
-    m_timeSinceRedn = MilliSeconds(250);	
+  //  m_timeSinceRedn = MilliSeconds(250); //modified in CongestionStateSet();	
    // m_factorK = 0.25;   // modified in updateKFactor();
    // m_cwndMax = 10;	  // modified in CongestionStateSet();
 
     double x;
-    x = m_factorC * std::pow ((m_timeSinceRedn.GetSeconds() - m_factorK), 3.0) + static_cast<double> (m_cwndMax);	
-    tcb->m_cWnd = static_cast<uint32_t> (x * tcb->m_segmentSize);
+    x = m_factorC * std::pow ((Simulator::Now ().GetSeconds()-m_timeSinceRedn.GetSeconds() - m_factorK), 3.0) + static_cast<double> (m_cwndMax);	
+    tcb->m_cWnd = static_cast<uint32_t> (x * tcb->m_segmentSize); // why multiplied by segment size,
   }
   else if(m_queueDelay > m_queueLow)
   {
     //fair flow balancing
-    uint32_t X = GetTarget(static_cast<uint32_t> (Simulator::Now ().GetSeconds ()));
-    m_qData = 5;
+    NS_LOG_INFO("Fair Flow Balancing");
+    uint32_t X = pow((static_cast<uint32_t> (Simulator::Now ().GetSeconds ())-m_fairFlowTimeStamp)/m_phi,3);
+   
+  //  m_qData = 5;    // need to modify
+   m_qData=tcb->m_nextTxSequence-tcb->m_lastAckedSeq-1;  //unit need to specify
 
     if(m_qData < X)
     {
@@ -140,19 +147,22 @@ void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
   }
   else if(m_queueDelay > m_queueTarget)
   {
+  
+	NS_LOG_INFO("cWnd Hold");  
+    m_fairFlowTimeStamp = static_cast<uint32_t> (Simulator::Now ().GetSeconds ());
+    
     // cwnd hold for a period of m_syncTime
     m_tempTime=m_syncTime;
     TimerHandler();
     
-    //Tailored decrease
-    
+    //Tailored decrease  
     tcb->m_cWnd = (tcb->m_cWnd - m_qData)*m_gamma;
     
     
     
   }
   else
-  {
+  {	NS_LOG_INFO("Slow start");
   	TcpNewReno::SlowStart (tcb, segmentsAcked);
   }
 }
