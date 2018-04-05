@@ -206,7 +206,7 @@ TraceNextRx (std::string &next_rx_seq_file_name)
 
 int main (int argc, char *argv[])
 {
-  std::string transport_prot = "TcpWestwood";
+  std::string transport_prot = "TcpLola";
   double error_p = 0.0;
   std::string bandwidth = "2Mbps";
   std::string delay = "0.01ms";
