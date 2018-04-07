@@ -89,12 +89,12 @@ public:
   void TimerHandler();
   
 private:
-  uint32_t m_queueLow;	    //!< Threshold value
-  uint32_t m_queueTarget;	//!< Threshold value 
+  Time m_queueLow;	    //!< Threshold value
+  Time m_queueTarget;	//!< Threshold value 
   Time m_queueDelay;	    //!< Queuing delay caused by the standing queue
   
-  uint32_t m_syncTime;	    //!< During CWnd Hold, the CWnd is unchanged for a fixed amount of time m_syncTime
-  uint32_t m_tempTime;
+  Time m_syncTime;	    //!< During CWnd Hold, the CWnd is unchanged for a fixed amount of time m_syncTime
+  //uint32_t m_tempTime;
   
   Time m_curRtt;			//!< Current value of RTT
   Time m_minRtt;	        //!< Minimum value of RTT during measurement time
@@ -110,7 +110,9 @@ private:
   uint32_t m_qData;	    	//!< Amount of data the flow itself has queued at the bottleneck
   
   uint32_t m_phi;	    	//!< Fair flow balancing curve factor
-  double m_gamma;           
+  double m_gamma;   
+  
+  uint32_t m_flag;        
   
   EventId m_expiredEvent;
 };
