@@ -42,7 +42,7 @@ TypeId TcpLola::GetTypeId (void)
                    TimeValue (MilliSeconds (5)),
                    MakeTimeAccessor (&TcpLola::m_queueTarget),
                    MakeTimeChecker ())    
-    .AddAttribute ("m_tempTime", "m_tempTime",
+    .AddAttribute ("m_tempTime", "m_tempTime",   // not needed
                    UintegerValue (250),
                    MakeUintegerAccessor (&TcpLola::m_tempTime),
                    MakeUintegerChecker<uint32_t> ())                
@@ -91,11 +91,11 @@ void TcpLola::CongestionStateSet (Ptr<TcpSocketState> tcb, const TcpSocketState:
     {
      m_cwndRednTimeStamp = Simulator::Now (); 
      m_state  = 1;
+     m_flag = 0;
      //NS_LOG_INFO("----------"<<newState);
     }
 }
 
-//m_cwndMaxTemp m_state
 void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
   if (m_state == 0)
@@ -144,11 +144,22 @@ void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
   else if (m_queueDelay	 > m_queueTarget && m_flag == 3)
   { 
     NS_LOG_FUNCTION("-----------CWnd Hold-----------");
-    TimerHandler();
-    m_qData = tcb->m_cWnd * m_queueDelay/m_curRtt; 
-    updateKfactor();
-    tcb->m_cWnd = (tcb->m_cWnd - m_qData) * m_gamma;
-    m_state = 1;
+    
+    NS_LOG_INFO("----Time now --:"<<Simulator::Now()<<"----");
+     //m_expiredEvent = Simulator::Schedule (MilliSeconds (250), &TcpLola::TailoredDecrease, this);
+     //m_tempTime=250;
+     //TimerHandler();
+     //sleep(250);
+
+     NS_LOG_INFO("----Time now --:"<<Simulator::Now()<<"----");
+
+
+
+     m_qData = tcb->m_cWnd * m_queueDelay/m_curRtt; 
+     updateKfactor();
+     tcb->m_cWnd = (tcb->m_cWnd - m_qData) * m_gamma;
+     m_state = 1;
+     m_flag=1;
   }
 
   else if (m_flag == 0)
@@ -165,10 +176,10 @@ std::string TcpLola::GetName () const
   return "TcpLola";
 }
 
-uint32_t TcpLola::GetSsThresh (Ptr<const TcpSocketState> tcb, uint32_t bytesInFlight)
-{
-  return std::max (std::min (tcb->m_ssThresh.Get (), tcb->m_cWnd.Get () - tcb->m_segmentSize), 2 * tcb->m_segmentSize);
-}
+ uint32_t TcpLola::GetSsThresh (Ptr<const TcpSocketState> tcb, uint32_t bytesInFlight)
+ {
+   return std::max (std::min (tcb->m_ssThresh.Get (), tcb->m_cWnd.Get () - tcb->m_segmentSize), 2 * tcb->m_segmentSize);
+ }
 
 void TcpLola::updateKfactor()
 {
@@ -185,4 +196,11 @@ void TcpLola::TimerHandler()
 	m_expiredEvent = Simulator::Schedule (MilliSeconds (1), &TcpLola::TimerHandler, this);
   }
 }
+void TcpLola::TailoredDecrease(){
+  //m_qData = tcb->m_cWnd * m_queueDelay/m_curRtt; 
+    updateKfactor();
+    // tcb->m_cWnd = (tcb->m_cWnd - m_qData) * m_gamma;
+    m_state = 1;
+    m_flag=1;
+  }
 } // namespace ns3
