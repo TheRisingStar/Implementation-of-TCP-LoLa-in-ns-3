@@ -49,8 +49,6 @@ public:
   
   virtual uint32_t GetSsThresh (Ptr<const TcpSocketState> tcb,
                                 uint32_t bytesInFlight);
-
-  virtual Ptr<TcpCongestionOps> Fork ();
   
   void updateKfactor();
   void TimerHandler();
@@ -62,7 +60,7 @@ private:
   Time m_queueDelay;	    //!< Queuing delay caused by the standing queue
   
   Time m_syncTime;	    //!< During CWnd Hold, the CWnd is unchanged for a fixed amount of time m_syncTime
-  uint32_t m_tempTime;
+  
   
   Time m_curRtt;			//!< Current value of RTT
   Time m_minRtt;	        //!< Minimum value of RTT during measurement time
@@ -85,7 +83,11 @@ private:
   uint32_t m_state;     
   uint32_t m_fair; 
   
-  EventId m_expiredEvent;
+  uint32_t m_minRttResetCounter;
+  
+  uint32_t m_cwndHoldTime;
+  
+  EventId m_cWndHoldEvent;
 };
 
 } // namespace ns3
