@@ -54,6 +54,15 @@ public:
   void TimerHandler();
   void TailoredDecrease();
   
+  enum lolaStates
+  {
+  	PS_SLOW_START,
+  	PS_CUBIC,
+  	PS_FAIR_FLOW,
+  	PS_CWND_HOLD
+  };
+
+  
 private:
   Time m_queueLow;	        //!< Threshold value
   Time m_queueTarget;	     //!< Threshold value 
@@ -79,9 +88,9 @@ private:
   uint32_t m_phi;	    	//!< Fair flow balancing curve factor
   double m_gamma;   
   
-  uint32_t m_flag;  
-  uint32_t m_state;     
-  uint32_t m_fair; 
+  uint32_t m_nextState;  
+  bool m_cwndReduced;     
+  bool m_fairFlowStart; 
   
   uint32_t m_minRttResetCounter;
   

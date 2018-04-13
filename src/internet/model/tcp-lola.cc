@@ -85,9 +85,9 @@ void TcpLola::CongestionStateSet (Ptr<TcpSocketState> tcb, const TcpSocketState:
   if (newState == TcpSocketState::CA_CWR || newState == TcpSocketState::CA_RECOVERY || newState == TcpSocketState::CA_LOSS )
     {
      m_cwndRednTimeStamp = Simulator::Now (); 
-     m_state  = 1;
+     m_cwndReduced  = true;
      
-     m_flag = 0;
+     m_nextState = PS_SLOW_START;
      
      //NS_LOG_INFO("----------"<<newState);
     }
@@ -95,35 +95,35 @@ void TcpLola::CongestionStateSet (Ptr<TcpSocketState> tcb, const TcpSocketState:
 
 void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
-  if (m_state == 0)
+  if (m_cwndReduced == false)
   {
   	m_cwndMaxTemp = std::max (static_cast<uint32_t>(tcb->m_cWnd), m_cwndMaxTemp);
   }
-  if (m_state == 1)
+  if (m_cwndReduced == true)
   {
   	m_cwndMax = m_cwndMaxTemp;
-  	m_state = 0;
+  	m_cwndReduced = false;
   	m_cwndMaxTemp = 0;
   }
 
-  if (m_maxRtt - m_minRtt > 2 * m_queueLow && m_flag==1 )	 
+  if (m_maxRtt - m_minRtt > 2 * m_queueLow && m_nextState==PS_CUBIC )	 
   {
     NS_LOG_FUNCTION("-----------Cubic Increase-----------");
     double x;
     x = m_factorC * std::pow ((Simulator::Now ().GetSeconds() - m_cwndRednTimeStamp.GetSeconds() - m_factorK), 3.0) + static_cast<double> (m_cwndMax);	
     tcb->m_cWnd = static_cast<uint32_t> (x * tcb->m_segmentSize); 
-    m_flag = 2;
+    m_nextState = PS_FAIR_FLOW;
     
   }
   
-  else if (m_queueDelay > m_queueLow && m_flag==2 )
+  else if (m_queueDelay > m_queueLow && m_nextState==PS_FAIR_FLOW )
   {
     uint32_t X;
     NS_LOG_FUNCTION("-----------Fair Flow Balancing-----------");
-    if (m_fair == 0)
+    if (m_fairFlowStart == false)
     {
      X = 0;
-     m_fair = 1;   	
+     m_fairFlowStart = true;   	
      m_fairFlowTimeStamp = Simulator::Now ();
     }
     else
@@ -136,11 +136,11 @@ void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
     {
       tcb->m_cWnd += X - m_qData;
     }
-    m_flag = 3;  
+    m_nextState = PS_CWND_HOLD;  
     
   }
 
-  else if (m_queueDelay	 > m_queueTarget && m_flag == 3)
+  else if (m_queueDelay	 > m_queueTarget && m_nextState == PS_CWND_HOLD)
   { 
     NS_LOG_FUNCTION("-----------CWnd Hold-----------");
     
@@ -156,20 +156,20 @@ void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
      m_qData = tcb->m_cWnd * m_queueDelay/m_curRtt; 
      updateKfactor();
      tcb->m_cWnd = (tcb->m_cWnd - m_qData) * m_gamma;
-     m_state = 1;
-     m_flag = 1;
+     m_cwndReduced = true;
+     m_nextState = PS_CUBIC;
      
      if(++m_minRttResetCounter==100){
      	m_minRtt=Seconds(DBL_MAX);
      }
   }
 
-  else if(m_flag == 0)
+  else if(m_nextState == PS_SLOW_START)
   {	
     NS_LOG_FUNCTION("-----------Slow Start-----------");
     TcpNewReno::SlowStart (tcb, segmentsAcked);
-    m_state = 0;
-    m_flag = 1;
+    m_cwndReduced = false;
+    m_nextState = PS_CUBIC;
    
   }
   m_cwndMaxTemp = std::max (static_cast<uint32_t>(tcb->m_cWnd), m_cwndMaxTemp);
@@ -200,11 +200,14 @@ void TcpLola::TimerHandler()
 	m_cWndHoldEvent = Simulator::Schedule (MilliSeconds (1), &TcpLola::TimerHandler, this);
   }
 }
-void TcpLola::TailoredDecrease(){
+
+void TcpLola::TailoredDecrease()
+{
   //m_qData = tcb->m_cWnd * m_queueDelay/m_curRtt; 
-    updateKfactor();
-    // tcb->m_cWnd = (tcb->m_cWnd - m_qData) * m_gamma;
-    m_state = 1;
-    //m_flag=1;
-  }
+  updateKfactor();
+  // tcb->m_cWnd = (tcb->m_cWnd - m_qData) * m_gamma;
+  m_cwndReduced = true;
+  //m_nextState=1;
+}
+
 } // namespace ns3
