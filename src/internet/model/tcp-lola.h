@@ -51,24 +51,23 @@ public:
                                 uint32_t bytesInFlight);
   
   void updateKfactor();
-  void TimerHandler();
-  void TailoredDecrease();
   
   enum lolaStates
   {
   	PS_SLOW_START,
   	PS_CUBIC,
   	PS_FAIR_FLOW,
-  	PS_CWND_HOLD
+  	PS_CWND_HOLD,
+  	PS_TAIL_DECREASE
   };
 
   
 private:
   Time m_queueLow;	        //!< Threshold value
-  Time m_queueTarget;	     //!< Threshold value 
-  Time m_queueDelay;	    //!< Queuing delay caused by the standing queue
+  Time m_queueTarget;	         //!< Threshold value 
+  Time m_queueDelay;	        //!< Queuing delay caused by the standing queue
   
-  Time m_syncTime;	    //!< During CWnd Hold, the CWnd is unchanged for a fixed amount of time m_syncTime
+  Time m_syncTime;	        //!< During CWnd Hold, the CWnd is unchanged for a fixed amount of time m_syncTime
   
   
   Time m_curRtt;			//!< Current value of RTT
@@ -76,7 +75,7 @@ private:
   Time m_maxRtt;	        //!< Maximum value of RTT during measurement time
   
   Time m_cwndRednTimeStamp;	//!< Time stamp when CWnd is reduced
-  Time m_fairFlowTimeStamp; //!< Time stamp when Queue Target is exceded
+  Time m_fairFlowTimeStamp;     //!< Time stamp when Queue Target is exceded
   
   double m_factorC;      	//!< Unit-less factor
   double m_factorK;	        //!< Recalculated whenever CWnd has to be reduced
@@ -89,12 +88,13 @@ private:
   double m_gamma;   
   
   uint32_t m_nextState;  
-  bool m_cwndReduced;     
-  bool m_fairFlowStart; 
+  bool m_cwndReduced   {false}; 
+  bool m_fairFlowStart {false};
+  bool m_cwndHoldStart {false};
   
   uint32_t m_minRttResetCounter;
   
-  uint32_t m_cwndHoldTime;
+  Time m_cwndHoldTime;
   
   EventId m_cWndHoldEvent;
 };

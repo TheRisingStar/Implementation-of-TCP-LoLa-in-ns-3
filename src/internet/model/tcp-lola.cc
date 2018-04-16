@@ -28,7 +28,7 @@ TypeId TcpLola::GetTypeId (void)
                    MakeUintegerAccessor (&TcpLola::m_phi),
                    MakeUintegerChecker<uint32_t> ())
     .AddAttribute ("Gamma", "Factor to update K",
-                   DoubleValue (973/1024),
+                   DoubleValue (0.95019),
                    MakeDoubleAccessor (&TcpLola::m_gamma),
                    MakeDoubleChecker <double> (0.0))
     .AddAttribute ("SyncTime","CWnd hold time in ms",
@@ -67,12 +67,11 @@ TcpLola::~TcpLola (void)
 
 void TcpLola::PktsAcked (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked, const Time& rtt)
 {
+   //NS_LOG_FUNCTION (this << tcb << segmentsAcked << rtt);
   if (rtt.IsZero ())
     {
       return;
     }
-	
-  //m_minRtt = tcb->m_minRtt;
   m_minRtt=std::min(m_minRtt,rtt);
   m_maxRtt = std::max (m_maxRtt, rtt);
   m_curRtt = rtt;
@@ -82,11 +81,11 @@ void TcpLola::PktsAcked (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked, const 
 
 void TcpLola::CongestionStateSet (Ptr<TcpSocketState> tcb, const TcpSocketState::TcpCongState_t newState)
 { 
+  //NS_LOG_FUNCTION (this << tcb << newState);
   if (newState == TcpSocketState::CA_CWR || newState == TcpSocketState::CA_RECOVERY || newState == TcpSocketState::CA_LOSS )
     {
      m_cwndRednTimeStamp = Simulator::Now (); 
      m_cwndReduced  = true;
-     
      m_nextState = PS_SLOW_START;
      
      //NS_LOG_INFO("----------"<<newState);
@@ -95,6 +94,7 @@ void TcpLola::CongestionStateSet (Ptr<TcpSocketState> tcb, const TcpSocketState:
 
 void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
+   //NS_LOG_FUNCTION (this << tcb << segmentsAcked);
   if (m_cwndReduced == false)
   {
   	m_cwndMaxTemp = std::max (static_cast<uint32_t>(tcb->m_cWnd), m_cwndMaxTemp);
@@ -140,35 +140,44 @@ void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
     
   }
 
-  else if (m_queueDelay	 > m_queueTarget && m_nextState == PS_CWND_HOLD)
+  else if ( (m_cwndHoldStart==true || m_queueDelay > m_queueTarget) && m_nextState == PS_CWND_HOLD)
   { 
-    NS_LOG_FUNCTION("-----------CWnd Hold-----------");
-    
-     //NS_LOG_INFO("----Time now --:"<<Simulator::Now()<<"----");
-     //m_expiredEvent = Simulator::Schedule (MilliSeconds (250), &TcpLola::TailoredDecrease, this);
-      m_cwndHoldTime=m_syncTime.GetMilliSeconds();
-      TimerHandler();
-     //sleep(250);
-     //NS_LOG_INFO("----Time now --:"<<Simulator::Now()<<"----");
-
-
-
+     NS_LOG_FUNCTION("-----------CWnd Hold-----------");
+      
+      if(m_cwndHoldStart==false){
+      	m_cwndHoldStart= true;
+      	m_cwndHoldTime = Simulator::Now();
+      	NS_LOG_INFO("-----enter cwnd --  " << Simulator::Now().GetSeconds() ); 
+      }
+      if(Simulator::Now() > m_cwndHoldTime + m_syncTime)
+       {
+         m_nextState = PS_TAIL_DECREASE;
+         m_cwndHoldStart = false;
+         NS_LOG_INFO("-----enter tail decrease --  " << Simulator::Now().GetSeconds() ); 
+       }
+      else
+      	{
+          m_nextState = PS_CWND_HOLD;
+          
+      	}
+    }
+ else if(m_nextState == PS_TAIL_DECREASE){
+ 
+     NS_LOG_FUNCTION("-----------Tailored Decrease-----------");
      m_qData = tcb->m_cWnd * m_queueDelay/m_curRtt; 
      updateKfactor();
      tcb->m_cWnd = (tcb->m_cWnd - m_qData) * m_gamma;
      m_cwndReduced = true;
-     m_nextState = PS_CUBIC;
-     
      if(++m_minRttResetCounter==100){
      	m_minRtt=Seconds(DBL_MAX);
      }
+     m_nextState = PS_CUBIC;
   }
 
-  else if(m_nextState == PS_SLOW_START)
+  else if((tcb->m_cWnd < tcb->m_ssThresh))
   {	
     NS_LOG_FUNCTION("-----------Slow Start-----------");
     TcpNewReno::SlowStart (tcb, segmentsAcked);
-    m_cwndReduced = false;
     m_nextState = PS_CUBIC;
    
   }
@@ -190,24 +199,6 @@ void TcpLola::updateKfactor()
   double temp = (m_curRtt - m_minRtt * m_gamma) * m_cwndMax / m_curRtt ;
   temp = temp / m_factorC;
   m_factorK = cbrt(temp);
-}
-
-void TcpLola::TimerHandler()
-{ 
-  if (m_cwndHoldTime > 0)
-  {
-    m_cwndHoldTime--;
-	m_cWndHoldEvent = Simulator::Schedule (MilliSeconds (1), &TcpLola::TimerHandler, this);
-  }
-}
-
-void TcpLola::TailoredDecrease()
-{
-  //m_qData = tcb->m_cWnd * m_queueDelay/m_curRtt; 
-  updateKfactor();
-  // tcb->m_cWnd = (tcb->m_cWnd - m_qData) * m_gamma;
-  m_cwndReduced = true;
-  //m_nextState=1;
 }
 
 } // namespace ns3
