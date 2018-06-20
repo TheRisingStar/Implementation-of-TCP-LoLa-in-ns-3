@@ -50,19 +50,26 @@ public:
   virtual uint32_t GetSsThresh (Ptr<const TcpSocketState> tcb,
                                 uint32_t bytesInFlight);
   
-  void updateKfactor();
-  
   enum lolaStates
   {
-  	PS_SLOW_START,
-  	PS_CUBIC,
-  	PS_FAIR_FLOW,
-  	PS_CWND_HOLD,
-  	PS_TAIL_DECREASE
+  	NS_SLOW_START,
+  	NS_CUBIC,
+  	NS_FAIR_FLOW,
+  	NS_CWND_HOLD,
+  	NS_TAIL_DECREASE
   };
 
   
 private:
+
+  void callSlowStart(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked);
+  void callCubic(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked);
+  void callFairFlow(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked);
+  void callCwndHold(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked);
+  void callTailDecrease(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked);
+  
+  void updateKfactor();
+
   Time m_queueLow;	        //!< Threshold value
   Time m_queueTarget;	         //!< Threshold value 
   Time m_queueDelay;	        //!< Queuing delay caused by the standing queue
