@@ -90,7 +90,6 @@ void TcpLola::CongestionStateSet (Ptr<TcpSocketState> tcb, const TcpSocketState:
       m_cwndHoldStart = false;
       m_nextState = NS_SLOW_START;
       NS_LOG_INFO ("Logging Retrasmit timeout ");
-      m_cwndHoldStart = false;
     }
   else if (newState == TcpSocketState::CA_RECOVERY)
     {
@@ -154,22 +153,26 @@ void TcpLola::updateKfactor ()
 void TcpLola::callSlowStart (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
   NS_LOG_FUNCTION ("-----------Slow Start-----------");
-  TcpNewReno::SlowStart (tcb, segmentsAcked);
   if (m_maxRtt - m_minRtt > 2 * m_queueLow)
     {
       m_nextState = NS_CUBIC;
+      return;
     }
+  TcpNewReno::SlowStart (tcb, segmentsAcked);
+ 
 }
 void TcpLola::callCubic (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
   NS_LOG_FUNCTION ("-----------Cubic Increase-----------");
-  double x;
-  x = m_factorC * std::pow ((Simulator::Now ().GetSeconds () - m_cwndRednTimeStamp.GetSeconds () - m_factorK), 3.0) + static_cast<double> (m_cwndMax);
-  tcb->m_cWnd = static_cast<uint32_t> (x * tcb->m_segmentSize);
   if (m_queueDelay > m_queueLow)
     {
       m_nextState = NS_FAIR_FLOW;
+      return;
     }
+  double x;
+  x = m_factorC * std::pow ((Simulator::Now ().GetSeconds () - m_cwndRednTimeStamp.GetSeconds () - m_factorK), 3.0) + static_cast<double> (m_cwndMax);
+  tcb->m_cWnd = static_cast<uint32_t> (x * tcb->m_segmentSize);
+  
 }
 void TcpLola::callFairFlow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
