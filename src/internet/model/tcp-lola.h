@@ -79,7 +79,9 @@ private:
   Time m_curRtt;                        //!< Current value of RTT
   Time m_minRtt;                //!< Minimum value of RTT during measurement time
   Time m_maxRtt;                //!< Maximum value of RTT during measurement time
-
+  Time m_measureTime;           //!<Measure Time Interval to caculate current RTT value 
+  
+  Time m_measureTimeStamp;
   Time m_cwndRednTimeStamp;     //!< Time stamp when CWnd is reduced
   Time m_fairFlowTimeStamp;     //!< Time stamp when Queue Target is exceded
 
@@ -101,6 +103,9 @@ private:
     false
   };
   bool m_cwndHoldStart {
+    false
+  };
+  bool m_measureTimeStart {
     false
   };
 

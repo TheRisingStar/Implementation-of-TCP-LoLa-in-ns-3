@@ -43,6 +43,10 @@ TypeId TcpLola::GetTypeId (void)
                    TimeValue (MilliSeconds (5)),
                    MakeTimeAccessor (&TcpLola::m_queueTarget),
                    MakeTimeChecker ())
+    .AddAttribute ("MeasureTime","Time interval to calculate m_currRtt value",
+                   TimeValue (MilliSeconds (5)),
+                   MakeTimeAccessor (&TcpLola::m_measureTime),
+                   MakeTimeChecker ())
   ;
   return tid;
 }
@@ -50,6 +54,11 @@ TypeId TcpLola::GetTypeId (void)
 TcpLola::TcpLola (void) : TcpNewReno ()
 {
   m_minRtt = Seconds (DBL_MAX);
+  m_curRtt = Seconds (DBL_MAX);
+  m_cwndReduced=false;
+  m_fairFlowStart=false;
+  m_cwndHoldStart=false;
+  m_measureTimeStart=false;
   m_nextState = NS_SLOW_START;	
   NS_LOG_FUNCTION (this);
 }
@@ -57,6 +66,11 @@ TcpLola::TcpLola (void) : TcpNewReno ()
 TcpLola::TcpLola (const TcpLola& sock) : TcpNewReno (sock)
 {
   m_minRtt = sock.m_minRtt;
+  m_curRtt = sock.m_curRtt;
+  m_cwndReduced=sock.m_cwndReduced;
+  m_fairFlowStart=sock.m_fairFlowStart;
+  m_cwndHoldStart=sock.m_cwndHoldStart;
+  m_measureTimeStart=sock.m_measureTimeStart;
   m_nextState = sock.m_nextState;	
   NS_LOG_FUNCTION (this);
 }
@@ -73,9 +87,21 @@ void TcpLola::PktsAcked (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked, const 
     {
       return;
     }
-  m_minRtt = std::min (m_minRtt,rtt);
-  m_maxRtt = std::max (m_maxRtt, rtt);
-  m_curRtt = rtt;
+  if(m_measureTimeStart==false){
+    m_measureTimeStamp=Simulator::Now ();
+    m_curRtt=Seconds(DBL_MAX);
+    m_measureTimeStart=true;
+    
+  } 
+  if(Simulator::Now () > m_measureTimeStamp+m_measureTime){
+  	m_measureTimeStart=false;
+  	m_curRtt=Seconds(DBL_MAX);
+  }
+  else{
+  	m_curRtt=std::min(rtt,m_curRtt);
+  }
+  m_minRtt = std::min (m_minRtt, m_curRtt);
+  m_maxRtt = std::max (m_maxRtt, m_curRtt);
   m_queueDelay = m_curRtt - m_minRtt;
   //NS_LOG_INFO("----------"<<m_minRtt<<"----------"<<m_maxRtt<<"----------"<<m_curRtt<<"----------"<<m_queueDelay);
 }
@@ -152,7 +178,7 @@ void TcpLola::updateKfactor ()
 
 void TcpLola::callSlowStart (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
-  NS_LOG_FUNCTION ("-----------Slow Start-----------");
+  NS_LOG_INFO ("SlowStart");
   if (m_maxRtt - m_minRtt > 2 * m_queueLow)
     {
       m_nextState = NS_CUBIC;
@@ -163,7 +189,7 @@ void TcpLola::callSlowStart (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 }
 void TcpLola::callCubic (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
-  NS_LOG_FUNCTION ("-----------Cubic Increase-----------");
+  NS_LOG_INFO ("Cubic");
   if (m_queueDelay > m_queueLow)
     {
       m_nextState = NS_FAIR_FLOW;
@@ -176,7 +202,12 @@ void TcpLola::callCubic (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 }
 void TcpLola::callFairFlow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
-  NS_LOG_FUNCTION ("-----------Fair Flow Balancing-----------");
+  NS_LOG_INFO ("FairFlow");
+  if (m_queueDelay > m_queueTarget)
+    {
+      m_nextState = NS_CWND_HOLD;
+      return;
+    }
   uint32_t X;
   if (m_fairFlowStart == false)
     {
@@ -184,24 +215,19 @@ void TcpLola::callFairFlow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
       m_fairFlowStart = true;
       m_fairFlowTimeStamp = Simulator::Now ();
     }
-  else
-    {
-      X = pow ((static_cast<uint32_t> (Simulator::Now ().GetSeconds ()) - m_fairFlowTimeStamp.GetSeconds ()) / m_phi, 3);
-    }
+    
+  X = pow ((static_cast<uint32_t> (Simulator::Now ().GetSeconds ()) - m_fairFlowTimeStamp.GetSeconds ()) / m_phi, 3);
 
   m_qData = (tcb->m_cWnd * m_queueDelay) / m_curRtt;
   if (m_qData < X)
     {
       tcb->m_cWnd += X - m_qData;
     }
-  if (m_cwndHoldStart == true || m_queueDelay > m_queueTarget)
-    {
-      m_nextState = NS_CWND_HOLD;
-    }
+  
 }
 void TcpLola::callCwndHold (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
-  NS_LOG_FUNCTION ("-----------CWND HOLD-----------");
+  NS_LOG_INFO ("CWndHold");
   if (m_cwndHoldStart == false)
     {
       m_cwndHoldStart = true;
@@ -219,10 +245,11 @@ void TcpLola::callCwndHold (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 }
 void TcpLola::callTailDecrease (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
-  NS_LOG_FUNCTION ("-----------Tailored Decrease-----------");
+  NS_LOG_INFO ("TailDecrease");
   m_qData = tcb->m_cWnd * m_queueDelay / m_curRtt;
   updateKfactor ();
   tcb->m_cWnd = (tcb->m_cWnd - m_qData) * m_gamma;
+  m_cwndRednTimeStamp = Simulator::Now ();
   m_cwndReduced = true;
   if (++m_minRttResetCounter == 100)
     {
