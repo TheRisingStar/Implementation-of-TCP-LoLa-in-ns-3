@@ -67,6 +67,9 @@ private:
   void callCwndHold (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked);
   void callTailDecrease (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked);
 
+
+  void updateRttList ();
+
   void updateKfactor ();
 
   Time m_queueLow;              //!< Threshold value
@@ -75,12 +78,15 @@ private:
 
   Time m_syncTime;              //!< During CWnd Hold, the CWnd is unchanged for a fixed amount of time m_syncTime
 
+  typedef std::list< std::pair<Time, Time> >  RttList;
+  typedef std::list< std::pair<Time, Time> >::iterator  RttListIter;
+  RttList m_rttList;
 
   Time m_curRtt;                        //!< Current value of RTT
   Time m_minRtt;                //!< Minimum value of RTT during measurement time
   Time m_maxRtt;                //!< Maximum value of RTT during measurement time
-  Time m_measureTime;           //!<Measure Time Interval to caculate current RTT value 
-  
+  Time m_measureTime;           //!<Measure Time Interval to caculate current RTT value
+
   Time m_measureTimeStamp;
   Time m_cwndRednTimeStamp;     //!< Time stamp when CWnd is reduced
   Time m_fairFlowTimeStamp;     //!< Time stamp when Queue Target is exceded
@@ -113,7 +119,9 @@ private:
 
   Time m_cwndHoldTime;
 
-  EventId m_cWndHoldEvent;
+  //EventId m_cWndHoldEvent;
+
+  EventId m_expiredEvent;                //!< The Event to trigger updateRttList
 };
 
 } // namespace ns3

@@ -44,7 +44,7 @@ TypeId TcpLola::GetTypeId (void)
                    MakeTimeAccessor (&TcpLola::m_queueTarget),
                    MakeTimeChecker ())
     .AddAttribute ("MeasureTime","Time interval to calculate m_currRtt value",
-                   TimeValue (MilliSeconds (5)),
+                   TimeValue (MilliSeconds (40)),
                    MakeTimeAccessor (&TcpLola::m_measureTime),
                    MakeTimeChecker ())
   ;
@@ -55,11 +55,11 @@ TcpLola::TcpLola (void) : TcpNewReno ()
 {
   m_minRtt = Seconds (DBL_MAX);
   m_curRtt = Seconds (DBL_MAX);
-  m_cwndReduced=false;
-  m_fairFlowStart=false;
-  m_cwndHoldStart=false;
-  m_measureTimeStart=false;
-  m_nextState = NS_SLOW_START;	
+  m_cwndReduced = false;
+  m_fairFlowStart = false;
+  m_cwndHoldStart = false;
+  m_measureTimeStart = false;
+  m_nextState = NS_SLOW_START;
   NS_LOG_FUNCTION (this);
 }
 
@@ -67,11 +67,11 @@ TcpLola::TcpLola (const TcpLola& sock) : TcpNewReno (sock)
 {
   m_minRtt = sock.m_minRtt;
   m_curRtt = sock.m_curRtt;
-  m_cwndReduced=sock.m_cwndReduced;
-  m_fairFlowStart=sock.m_fairFlowStart;
-  m_cwndHoldStart=sock.m_cwndHoldStart;
-  m_measureTimeStart=sock.m_measureTimeStart;
-  m_nextState = sock.m_nextState;	
+  m_cwndReduced = sock.m_cwndReduced;
+  m_fairFlowStart = sock.m_fairFlowStart;
+  m_cwndHoldStart = sock.m_cwndHoldStart;
+  m_measureTimeStart = sock.m_measureTimeStart;
+  m_nextState = sock.m_nextState;
   NS_LOG_FUNCTION (this);
 }
 
@@ -87,27 +87,37 @@ void TcpLola::PktsAcked (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked, const 
     {
       return;
     }
-  if(m_measureTimeStart==false){
+  /*if(m_measureTimeStart==false){
     m_measureTimeStamp=Simulator::Now ();
     m_curRtt=Seconds(DBL_MAX);
     m_measureTimeStart=true;
-    
-  } 
+
+  }
   if(Simulator::Now () > m_measureTimeStamp+m_measureTime){
-  	m_measureTimeStart=false;
-  	m_curRtt=Seconds(DBL_MAX);
+        m_measureTimeStart=false;
+        m_curRtt=Seconds(DBL_MAX);
   }
   else{
-  	m_curRtt=std::min(rtt,m_curRtt);
+        m_curRtt=std::min(rtt,m_curRtt);
   }
   m_minRtt = std::min (m_minRtt, m_curRtt);
-  m_maxRtt = std::max (m_maxRtt, m_curRtt);
+  m_maxRtt = std::max (m_maxRtt, rtt);
+  */
+  if (m_rttList.size () == 0)
+    {
+      m_curRtt = rtt;
+      m_minRtt = rtt;
+      m_maxRtt = rtt;
+      updateRttList ();
+    }
+  m_rttList.push_back (std::make_pair (rtt,Simulator::Now ()));
+  m_maxRtt = std::max (m_maxRtt, rtt);
   m_queueDelay = m_curRtt - m_minRtt;
-  //NS_LOG_INFO("----------"<<m_minRtt<<"----------"<<m_maxRtt<<"----------"<<m_curRtt<<"----------"<<m_queueDelay);
+  NS_LOG_INFO ("----------" << m_minRtt << "----------" << m_maxRtt << "----------" << m_curRtt << "----------" << m_queueDelay);
 }
 
 void TcpLola::CongestionStateSet (Ptr<TcpSocketState> tcb, const TcpSocketState::TcpCongState_t newState)
-{ 
+{
   NS_LOG_FUNCTION (this << tcb << newState);
   if (newState == TcpSocketState::CA_LOSS )
     {
@@ -119,8 +129,11 @@ void TcpLola::CongestionStateSet (Ptr<TcpSocketState> tcb, const TcpSocketState:
     }
   else if (newState == TcpSocketState::CA_RECOVERY)
     {
+      m_cwndRednTimeStamp = Simulator::Now ();
+      m_cwndReduced  = true;
+      m_cwndHoldStart = false;
+      //m_nextState = NS_SLOW_START;
       NS_LOG_INFO ("Logging Recovery stage");
-      m_nextState = NS_TAIL_DECREASE;
     }
 }
 
@@ -137,6 +150,7 @@ void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
       m_cwndReduced = false;
       m_cwndMaxTemp = 0;
     }
+  NS_LOG_INFO (" Increase window- " << m_nextState << "  ---------");
   switch (m_nextState)
     {
     case NS_SLOW_START:
@@ -185,7 +199,7 @@ void TcpLola::callSlowStart (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
       return;
     }
   TcpNewReno::SlowStart (tcb, segmentsAcked);
- 
+
 }
 void TcpLola::callCubic (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
@@ -198,7 +212,7 @@ void TcpLola::callCubic (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
   double x;
   x = m_factorC * std::pow ((Simulator::Now ().GetSeconds () - m_cwndRednTimeStamp.GetSeconds () - m_factorK), 3.0) + static_cast<double> (m_cwndMax);
   tcb->m_cWnd = static_cast<uint32_t> (x * tcb->m_segmentSize);
-  
+
 }
 void TcpLola::callFairFlow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
@@ -215,7 +229,7 @@ void TcpLola::callFairFlow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
       m_fairFlowStart = true;
       m_fairFlowTimeStamp = Simulator::Now ();
     }
-    
+
   X = pow ((static_cast<uint32_t> (Simulator::Now ().GetSeconds ()) - m_fairFlowTimeStamp.GetSeconds ()) / m_phi, 3);
 
   m_qData = (tcb->m_cWnd * m_queueDelay) / m_curRtt;
@@ -223,7 +237,7 @@ void TcpLola::callFairFlow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
     {
       tcb->m_cWnd += X - m_qData;
     }
-  
+
 }
 void TcpLola::callCwndHold (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
@@ -256,6 +270,20 @@ void TcpLola::callTailDecrease (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
       m_minRtt = Seconds (DBL_MAX);
     }
   m_nextState = NS_CUBIC;
+}
+void TcpLola::updateRttList ()
+{
+  RttListIter iter = m_rttList.begin ();
+  while ((*iter).second.GetMilliSeconds () + 40 < Simulator::Now ().GetMilliSeconds ())
+    {
+      m_rttList.remove (*iter++);
+    }
+  for (iter = m_rttList.begin (); iter != m_rttList.end (); iter++)
+    {
+      m_curRtt = std::min (m_curRtt,(*iter).first);
+    }
+  m_minRtt = std::min (m_minRtt,m_curRtt);
+  m_expiredEvent = Simulator::Schedule (MilliSeconds (1), &TcpLola::updateRttList, this);
 }
 
 } // namespace ns3
