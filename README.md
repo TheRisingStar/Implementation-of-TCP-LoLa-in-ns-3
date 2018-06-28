@@ -105,24 +105,26 @@ The validity of RTT<sub>min</sub> is checked after tailored decrease. RTT<sub>mi
 
 ### Steps to reproduce
 
+### To run the code
+
 First we need to download and use the development version of ns-3.
-If you have successfully installed mercurial, you can get the copy of development version with the following command:
+If you have successfully installed mercurial, you can get copy of the development version with the following command :
 
 `hg clone http://code.nsnam.org/ns-3-allinone`
 
 `cd ns-3-allinone && ./download.py`
 
-`cd ns-3-dev`
+To build ns-3 downloaded, open the terminal to `ns-3-allinone` directory and enter the following command :
 
-Replace the contents in ns-3-dev directory with the cloned directory files. Then build ns-3 using:
+`./build.py`
 
-`./waf configure --enable-examples --enable-tests`
-
-Now clone the repository to your local machine:
+Now clone the repository to your local machine.
 
 `git clone https://github.com/joe019/Implementation-of-TCP-LoLa-in-ns-3.git`
 
-Copy the contents of cloned repository to ns-3-allinone.
+Replace the contents in ns-3-dev directory with the cloned directory files. Then configure examples and tests in ns-3 using :
+
+`./waf configure --enable-examples --enable-tests`
 
 TCP Lola module has been provided in:
 
