@@ -41,14 +41,7 @@ public:
   virtual void CongestionStateSet (Ptr<TcpSocketState> tcb,
                                    const TcpSocketState::TcpCongState_t newState);
 
-  uint32_t GetTarget (uint32_t time);
-
-
   virtual void IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked);
-
-
-  virtual uint32_t GetSsThresh (Ptr<const TcpSocketState> tcb,
-                                uint32_t bytesInFlight);
 
   enum lolaStates
   {
@@ -59,7 +52,6 @@ public:
     NS_TAIL_DECREASE
   };
 
-
 private:
   void callSlowStart (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked);
   void callCubic (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked);
@@ -67,41 +59,40 @@ private:
   void callCwndHold (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked);
   void callTailDecrease (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked);
 
-
-  void updateRttList ();
-
   void updateKfactor ();
+
+  //void updateRttList ();   //List push method to measure curRtt
 
   Time m_queueLow;              //!< Threshold value
   Time m_queueTarget;            //!< Threshold value
   Time m_queueDelay;            //!< Queuing delay caused by the standing queue
-
   Time m_syncTime;              //!< During CWnd Hold, the CWnd is unchanged for a fixed amount of time m_syncTime
 
-  typedef std::list< std::pair<Time, Time> >  RttList;
-  typedef std::list< std::pair<Time, Time> >::iterator  RttListIter;
-  RttList m_rttList;
+  uint32_t m_phi;               //!< Fair flow balancing curve factor
+  double m_gamma;
+  double m_factorC;             //!< Unit-less factor
+
+
+  double m_factorK;             //!< Recalculated whenever CWnd has to be reduced
 
   Time m_curRtt;                        //!< Current value of RTT
   Time m_minRtt;                //!< Minimum value of RTT during measurement time
   Time m_maxRtt;                //!< Maximum value of RTT during measurement time
+  uint32_t m_qData;             //!< Amount of data the flow itself has queued at the bottleneck
+  uint32_t m_minRttResetCounter;
+
   Time m_measureTime;           //!<Measure Time Interval to caculate current RTT value
+  Time m_cwndHoldTime;
 
   Time m_measureTimeStamp;
   Time m_cwndRednTimeStamp;     //!< Time stamp when CWnd is reduced
   Time m_fairFlowTimeStamp;     //!< Time stamp when Queue Target is exceded
 
-  double m_factorC;             //!< Unit-less factor
-  double m_factorK;             //!< Recalculated whenever CWnd has to be reduced
-
   uint32_t m_cwndMax;           //!< Size of CWnd before last reduction
   uint32_t m_cwndMaxTemp;
-  uint32_t m_qData;             //!< Amount of data the flow itself has queued at the bottleneck
-
-  uint32_t m_phi;               //!< Fair flow balancing curve factor
-  double m_gamma;
 
   uint32_t m_nextState;
+
   bool m_cwndReduced   {
     false
   };
@@ -111,17 +102,19 @@ private:
   bool m_cwndHoldStart {
     false
   };
+
+  /* flag method to measure curRtt
   bool m_measureTimeStart {
     false
   };
+  */
 
-  uint32_t m_minRttResetCounter;
-
-  Time m_cwndHoldTime;
-
-  //EventId m_cWndHoldEvent;
-
+  /*List push method to measure curRtt
+  typedef std::list< std::pair<Time, Time> >  RttList;
+  typedef std::list< std::pair<Time, Time> >::iterator  RttListIter;
+  RttList m_rttList;
   EventId m_expiredEvent;                //!< The Event to trigger updateRttList
+  */
 };
 
 } // namespace ns3
