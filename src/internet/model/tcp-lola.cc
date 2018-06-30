@@ -32,7 +32,7 @@ TypeId TcpLola::GetTypeId (void)
                    MakeDoubleAccessor (&TcpLola::m_gamma),
                    MakeDoubleChecker <double> (0.0))
     .AddAttribute ("SyncTime","CWnd hold time in ms",
-                   TimeValue (MilliSeconds (10)),
+                   TimeValue (MilliSeconds (250)),
                    MakeTimeAccessor (&TcpLola::m_syncTime),
                    MakeTimeChecker ())
     .AddAttribute ("QueueLow","Minimum queue delay expected in ms",
@@ -61,7 +61,6 @@ TcpLola::TcpLola (void) : TcpNewReno ()
   m_cwndHoldStart = false;
   //m_measureTimeStart = false; //flag method to measure curRtt
   m_nextState = NS_SLOW_START;
-
 }
 
 TcpLola::TcpLola (const TcpLola& sock) : TcpNewReno (sock)
@@ -74,7 +73,6 @@ TcpLola::TcpLola (const TcpLola& sock) : TcpNewReno (sock)
   m_cwndHoldStart = sock.m_cwndHoldStart;
   //m_measureTimeStart = sock.m_measureTimeStart;  //flag method to measure curRtt
   m_nextState = sock.m_nextState;
-
 }
 
 TcpLola::~TcpLola (void)
@@ -121,11 +119,11 @@ void TcpLola::PktsAcked (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked, const 
   */
 
   // basic method
-  m_minRtt = std::min (m_minRtt,rtt);
+  m_minRtt = std::min (m_minRtt, rtt);
   m_maxRtt = std::max (m_maxRtt, rtt);
   m_curRtt = rtt;
 
-  m_queueDelay = m_curRtt - m_minRtt;
+  m_queueDelay = (m_curRtt - m_minRtt);
   //NS_LOG_INFO ("----------" << m_minRtt << "----------" << m_maxRtt << "----------" << m_curRtt << "----------" << m_queueDelay);
 }
 
@@ -135,10 +133,10 @@ void TcpLola::CongestionStateSet (Ptr<TcpSocketState> tcb, const TcpSocketState:
   if (newState == TcpSocketState::CA_LOSS )
     {
       //m_cwndRednTimeStamp = Simulator::Now ();
-      // m_cwndReduced  = true;  // Ambigous ,not sure whether this reduction due to loss is considered
+      //m_cwndReduced  = true;  // Ambigous, not sure whether this reduction due to loss is considered
       m_cwndHoldStart = false;
       m_nextState = NS_SLOW_START;
-      NS_LOG_INFO ("Logging Retrasmit timeout ");
+      NS_LOG_INFO ("Logging Retrasmit timeout");
     }
   else if (newState == TcpSocketState::CA_RECOVERY)
     {
@@ -166,6 +164,7 @@ void TcpLola::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
       m_cwndReduced = false;
       m_cwndMaxTemp = 0;
     }
+
   switch (m_nextState)
     {
     case NS_SLOW_START:
@@ -194,16 +193,16 @@ std::string TcpLola::GetName () const
 
 void TcpLola::updateKfactor ()
 {
-  double temp = (m_curRtt - m_minRtt * m_gamma) * m_cwndMax / m_curRtt;
+  double temp = (m_cwndMax * m_curRtt.GetMilliSeconds()) - (m_minRtt.GetMilliSeconds() * m_cwndMax * m_gamma);
   temp = temp / m_factorC;
+  temp = temp / m_curRtt.GetMilliSeconds();
   m_factorK = cbrt (temp);
 }
-
 
 void TcpLola::callSlowStart (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
   NS_LOG_INFO ("SlowStart");
-  if (m_maxRtt - m_minRtt > 2 * m_queueLow)
+  if ((m_maxRtt - m_minRtt) > 2 * m_queueLow)
     {
       m_nextState = NS_CUBIC;
       return;
@@ -213,8 +212,8 @@ void TcpLola::callSlowStart (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
       tcb->m_cWnd += tcb->m_segmentSize;
     }
   //TcpNewReno::SlowStart (tcb, segmentsAcked);
-
 }
+
 void TcpLola::callCubic (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
   NS_LOG_INFO ("Cubic");
