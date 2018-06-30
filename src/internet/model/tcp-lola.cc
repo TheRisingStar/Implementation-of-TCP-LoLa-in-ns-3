@@ -217,16 +217,19 @@ void TcpLola::callSlowStart (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 void TcpLola::callCubic (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
   NS_LOG_INFO ("Cubic");
+  // NS_LOG_INFO ("Simulator time = "<<Simulator::Now ().GetSeconds ());
   if (m_queueDelay > m_queueLow)
     {
       m_nextState = NS_FAIR_FLOW;
       return;
     }
+
   double x;
   x = m_factorC * std::pow ((Simulator::Now ().GetSeconds () - m_cwndRednTimeStamp.GetSeconds () - m_factorK), 3.0) + static_cast<double> (m_cwndMax);
+  
   tcb->m_cWnd = static_cast<uint32_t> (x * tcb->m_segmentSize);
-
 }
+
 void TcpLola::callFairFlow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
   NS_LOG_INFO ("FairFlow");
@@ -236,6 +239,7 @@ void TcpLola::callFairFlow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
       m_fairFlowStart = false;
       return;
     }
+
   uint32_t X;
   if (m_fairFlowStart == false)
     {
@@ -243,8 +247,10 @@ void TcpLola::callFairFlow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
       m_fairFlowStart = true;
       m_fairFlowTimeStamp = Simulator::Now ();
     }
+  
+  X = pow ( ((Simulator::Now ().GetSeconds () - m_fairFlowTimeStamp.GetSeconds ()) / static_cast<double>(m_phi) ), 3);
 
-  X = pow ((static_cast<uint32_t> (Simulator::Now ().GetSeconds ()) - m_fairFlowTimeStamp.GetSeconds ()) / m_phi, 3);
+  NS_LOG_INFO ("FairFlow checkpoint 1");
 
   m_qData = (tcb->m_cWnd * m_queueDelay) / m_curRtt;
   if (m_qData < X)
@@ -252,7 +258,9 @@ void TcpLola::callFairFlow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
       tcb->m_cWnd += X - m_qData;
     }
 
+  NS_LOG_INFO ("FairFlow checkpoint 2");
 }
+
 void TcpLola::callCwndHold (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
   NS_LOG_INFO ("CWndHold");
@@ -272,6 +280,7 @@ void TcpLola::callCwndHold (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
       m_nextState = NS_CWND_HOLD;
     }
 }
+
 void TcpLola::callTailDecrease (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
   NS_LOG_INFO ("TailDecrease");
@@ -280,7 +289,8 @@ void TcpLola::callTailDecrease (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
   tcb->m_cWnd = (tcb->m_cWnd - m_qData) * m_gamma;
   m_cwndRednTimeStamp = Simulator::Now ();
   m_cwndReduced = true;
-  if (m_minRttResetCounter == 100 && abs (m_minRtt.GetMilliSeconds () - m_curRtt.GetMilliSeconds ()) >= 5)
+
+  if (m_minRttResetCounter == 100 && abs (m_minRtt.GetMilliSeconds () - m_curRtt.GetMilliSeconds ()) >= 0.1)
     {
       m_minRtt = Seconds (DBL_MAX);
     }
